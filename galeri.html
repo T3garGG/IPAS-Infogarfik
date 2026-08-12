@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brantas Herbarium — Galeri</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+<div class="grain"></div>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a href="index.html" class="brand">
+      <span class="leaf">🌿</span>
+      <span class="brand-text"><b>Brantas Herbarium</b><span>Kelas XPPLG · SMKS Brantas Karangkates</span></span>
+    </a>
+    <button class="menu-toggle" aria-label="Buka menu">☰</button>
+    <nav class="main-nav">
+      <a href="index.html">Beranda</a>
+      <a href="tentang.html">Tentang Museum</a>
+      <a href="koleksi.html">Koleksi Tanaman</a>
+      <a href="galeri.html">Galeri</a>
+      <a href="kontributor.html">Kontributor</a>
+    </nav>
+  </div>
+  <div class="stitch"></div>
+</header>
+
+<section class="hero" style="padding-bottom:36px;">
+  <div class="wrap">
+    <span class="eyebrow">Kontribusi Terbuka</span>
+    <h1 class="hero-title" style="font-size:clamp(2rem,4vw,2.8rem);">Galeri <em>Temuan</em> Warga</h1>
+    <p class="hero-lede">Nemu tanaman menarik di halaman rumah atau sekitar sekolah? Foto, kasih nama, tulis deskripsi singkat, lalu unggah ke sini. Fotomu tersimpan di database dan langsung muncul di galeri.</p>
+  </div>
+</section>
+
+<section class="block" style="padding-top:20px;">
+  <div class="wrap">
+
+    <div class="upload-panel reveal">
+      <h3>📤 Unggah Foto Tanaman</h3>
+      <p class="hint">Isi form di bawah — foto & nama tanaman wajib diisi.</p>
+      <form class="upload-form" id="uploadForm">
+        <div>
+          <label for="fName">Nama Tanaman *</label>
+          <input type="text" id="fName" placeholder="Contoh: Bunga Kertas" required>
+        </div>
+        <div>
+          <label for="fCat">Kategori</label>
+          <select id="fCat">
+            <option value="Hias">Hias</option>
+            <option value="Obat">Obat</option>
+            <option value="Pangan">Pangan</option>
+            <option value="Langka">Langka</option>
+          </select>
+        </div>
+        <div class="full">
+          <label for="fDesc">Deskripsi Singkat</label>
+          <textarea id="fDesc" rows="3" placeholder="Ciri-ciri, lokasi ditemukan, atau manfaatnya..."></textarea>
+        </div>
+        <div class="full">
+          <label for="fFile">Foto Tanaman *</label>
+          <input type="file" id="fFile" accept="image/*" required>
+        </div>
+        <div class="upload-actions">
+          <span class="err" id="formErr"></span>
+          <button type="submit" class="btn btn-primary">Unggah ke Galeri</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="section-head reveal">
+      <span class="eyebrow">Koleksi Warga</span>
+      <h2>Temuan yang sudah masuk</h2>
+    </div>
+    <div class="grid" id="galeriGrid"></div>
+    <p id="emptyGaleri" class="empty-note" style="display:none;">Belum ada foto di galeri ini. Jadilah yang pertama unggah! 🌱</p>
+  </div>
+</section>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="stitchtop"></div>
+    <button class="close" id="modalClose">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div class="brand-text"><b style="font-family:var(--display); font-style:italic; color:var(--paper);">Brantas Herbarium</b></div>
+    <div class="fmeta">PROYEK KELAS XPPLG — SMKS BRANTAS KARANGKATES</div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  const grid = document.getElementById("galeriGrid");
+  const emptyGaleri = document.getElementById("emptyGaleri");
+  const form = document.getElementById("uploadForm");
+  const formErr = document.getElementById("formErr");
+
+  async function fetchGallery(){
+    try {
+      const res = await fetch('/api/gallery');
+      if (!res.ok) throw new Error('Gagal memuat galeri');
+      return await res.json();
+    } catch(e) {
+      console.error(e);
+      return [];
+    }
+  }
+
+  function renderGallery(items){
+    emptyGaleri.style.display = items.length ? "none" : "block";
+    grid.innerHTML = items.map(it => `
+      <div class="card reveal show" data-id="${it.id}">
+        <button class="del" data-id="${it.id}" title="Hapus">✕</button>
+        <div class="stitchtop"></div>
+        <img class="thumb" src="${it.img}" alt="${it.nama}">
+        <div class="body">
+          <span class="no-tag">Kiriman Warga</span>
+          <h3>${it.nama}</h3>
+          <p class="desc">${it.deskripsi || "Belum ada deskripsi."}</p>
+          <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>
+        </div>
+      </div>
+    `).join("");
+
+    grid.querySelectorAll(".card").forEach(card => {
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".del")) return;
+        const id = parseInt(card.dataset.id);
+        const item = items.find(x => x.id === id);
+        if (item) openModal(item);
+      });
+    });
+
+    grid.querySelectorAll(".del").forEach(btn => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        if (!confirm("Hapus foto ini?")) return;
+        try {
+          const res = await fetch(`/api/gallery?id=${id}`, { method: 'DELETE' });
+          if (res.ok) {
+            loadGalleryFromApi();
+          } else {
+            const data = await res.json();
+            alert(data.error || "Gagal menghapus foto");
+          }
+        } catch(err) {
+          alert("Gagal menghapus foto");
+        }
+      });
+    });
+  }
+
+  async function loadGalleryFromApi(){
+    const items = await fetchGallery();
+    renderGallery(items);
+  }
+
+  const overlay = document.getElementById("modalOverlay");
+  const modalContent = document.getElementById("modalContent");
+
+  function openModal(item){
+    const shareUrl = `${window.location.origin}${window.location.pathname}#photo-${item.id}`;
+    modalContent.innerHTML = `
+      <img src="${item.img}" alt="${item.nama}">
+      <div class="modal-body">
+        <span class="no-tag">Kiriman Warga — <span class="badge ${kategoriClass(item.kategori)}">${item.kategori}</span></span>
+        <h2>${item.nama}</h2>
+        <p class="latin">No. #${String(item.id).padStart(3, '0')}</p>
+        <p style="color:var(--ink-soft); margin-top:10px;">${item.deskripsi || "Belum ada deskripsi."}</p>
+        <div class="qr-section">
+          <p style="font-family:var(--label); font-size:.75rem; letter-spacing:1px; text-transform:uppercase; color:var(--stamp); margin-bottom:8px;">QR Code</p>
+          <img id="qr-img-${item.id}" alt="QR Code" style="width:150px; height:150px; border:1px solid var(--line); background:#fff;">
+          <p style="font-size:.75rem; color:var(--ink-soft); margin-top:6px;">Scan untuk berbagi link foto ini</p>
+        </div>
+      </div>
+    `;
+
+    const qrImg = document.getElementById(`qr-img-${item.id}`);
+    if (qrImg) {
+      if (typeof QRCode !== 'undefined') {
+        QRCode.toDataURL(shareUrl, { width: 150, margin: 1 }, (err, url) => {
+          if (!err) qrImg.src = url;
+        });
+      } else {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}`;
+      }
+    }
+
+    overlay.classList.add("open");
+  }
+
+  document.getElementById("modalClose").addEventListener("click", () => overlay.classList.remove("open"));
+  overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.classList.remove("open"); });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    formErr.textContent = "";
+    const nama = document.getElementById("fName").value.trim();
+    const kategori = document.getElementById("fCat").value;
+    const desc = document.getElementById("fDesc").value.trim();
+    const fileInput = document.getElementById("fFile");
+    const file = fileInput.files[0];
+
+    if (!nama || !file) {
+      formErr.textContent = "Nama & foto wajib diisi.";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      formErr.textContent = "Ukuran foto maks 2MB ya.";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const res = await fetch('/api/gallery', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nama,
+            kategori,
+            desc,
+            img: reader.result,
+            ts: Date.now()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          formErr.textContent = data.error || "Gagal mengunggah.";
+          return;
+        }
+        form.reset();
+        loadGalleryFromApi();
+        document.getElementById("galeriGrid").scrollIntoView({ behavior:"smooth", block:"start" });
+      } catch (err) {
+        formErr.textContent = "Gagal mengunggah. Coba lagi.";
+      }
+    };
+    reader.onerror = () => { formErr.textContent = "Gagal baca file, coba foto lain."; };
+    reader.readAsDataURL(file);
+  });
+
+  loadGalleryFromApi();
+
+  if (location.hash.startsWith('#photo-')) {
+    const id = parseInt(location.hash.replace('#photo-', ''));
+    fetchGallery().then(items => {
+      const item = items.find(x => x.id === id);
+      if (item) openModal(item);
+    });
+  }
+</script>
+</body>
+</html>

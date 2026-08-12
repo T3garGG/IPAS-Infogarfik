@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brantas Herbarium — Beranda</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="grain"></div>
+
+<header class="site-header">
+  <div class="nav-inner">
+    <a href="index.html" class="brand">
+      <span class="leaf">🌿</span>
+      <span class="brand-text"><b>Brantas Herbarium</b><span>Kelas XPPLG · SMKS Brantas Karangkates</span></span>
+    </a>
+    <button class="menu-toggle" aria-label="Buka menu">☰</button>
+    <nav class="main-nav">
+      <a href="index.html">Beranda</a>
+      <a href="tentang.html">Tentang Museum</a>
+      <a href="koleksi.html">Koleksi Tanaman</a>
+      <a href="galeri.html">Galeri</a>
+      <a href="kontributor.html">Kontributor</a>
+    </nav>
+  </div>
+  <div class="stitch"></div>
+</header>
+
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <span class="eyebrow">Museum Herbarium Digital</span>
+      <h1 class="hero-title">Setiap daun<br>punya <em>catatan</em>.</h1>
+      <p class="hero-lede">Brantas Herbarium adalah koleksi digital tanaman hasil riset 20 kelompok kelas XPPLG — dari tanaman hias, obat, pangan, sampai spesies langka di sekitar kita. Difoto, dicatat, dan diawetkan dalam bentuk lembar spesimen.</p>
+      <div class="hero-cta">
+        <a href="koleksi.html" class="btn btn-primary">Jelajahi Koleksi</a>
+        <a href="galeri.html" class="btn btn-ghost">Unggah Temuanmu →</a>
+      </div>
+    </div>
+    <div class="specimen-sheet">
+      <span class="tag">No. 001</span>
+      <img src="https://images.unsplash.com/photo-1592729645009-b96d1e63d14b?q=80&w=800&auto=format&fit=crop" alt="Melati Putih">
+      <h3>Melati Putih</h3>
+      <p>Jasminum sambac — Hias</p>
+      <div class="stamp">DIVERIFIKASI<br>HERBARIUM</div>
+    </div>
+  </div>
+</section>
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stat"><b id="statTotal">8</b><span>Spesies Terdata</span></div>
+    <div class="stat"><b>20</b><span>Kelompok Kontributor</span></div>
+    <div class="stat"><b>4</b><span>Kategori Tanaman</span></div>
+    <div class="stat" id="statGaleri"><b>0</b><span>Foto Galeri Warga</span></div>
+  </div>
+</section>
+
+<section class="block">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Kategori</span>
+      <h2>Empat rak koleksi</h2>
+      <p>Tiap spesimen di museum ini dikelompokkan berdasarkan fungsinya di kehidupan sehari-hari.</p>
+    </div>
+    <div class="grid">
+      <div class="card reveal">
+        <div class="stitchtop"></div>
+        <div class="body">
+          <span class="badge hias">Hias</span>
+          <h3>Tanaman Hias</h3>
+          <p class="desc">Dipilih karena keindahan bentuk, warna, atau aromanya — dari melati sampai anggrek.</p>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="stitchtop"></div>
+        <div class="body">
+          <span class="badge obat">Obat</span>
+          <h3>Tanaman Obat</h3>
+          <p class="desc">Warisan jamu dan pengobatan tradisional Nusantara, dari kunyit sampai sirih.</p>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="stitchtop"></div>
+        <div class="body">
+          <span class="badge pangan">Pangan</span>
+          <h3>Tanaman Pangan</h3>
+          <p class="desc">Sumber karbohidrat & gizi rakyat yang tumbuh di pekarangan maupun ladang.</p>
+        </div>
+      </div>
+      <div class="card reveal">
+        <div class="stitchtop"></div>
+        <div class="body">
+          <span class="badge langka">Langka</span>
+          <h3>Tanaman Langka</h3>
+          <p class="desc">Spesies yang populasinya menyusut dan perlu perhatian konservasi lebih.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" style="background:var(--paper-2); border-top:1px solid var(--line); border-bottom:1px solid var(--line);">
+  <div class="wrap" style="text-align:center;">
+    <span class="eyebrow" style="justify-content:center;">Ikut Berkontribusi</span>
+    <h2 style="font-family:var(--display); font-style:italic; font-size:2rem; color:var(--forest-deep); margin:8px 0 14px;">Punya tanaman menarik di sekitar rumah?</h2>
+    <p style="color:var(--ink-soft); max-width:56ch; margin:0 auto 26px;">Foto, kasih nama, tulis deskripsi singkat — unggah ke Galeri dan jadi bagian dari koleksi kelas.</p>
+    <a href="galeri.html" class="btn btn-primary">Buka Galeri Unggah</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand-text"><b style="font-family:var(--display); font-style:italic; color:var(--paper);">Brantas Herbarium</b></div>
+    <div class="fmeta">PROYEK KELAS XPPLG — SMKS BRANTAS KARANGKATES</div>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script src="shared.js"></script>
+<script>
+  document.getElementById("statTotal").textContent = COLLECTION.length;
+  fetch('/api/gallery').then(r=>r.json()).then(g=>{
+    document.querySelector("#statGaleri b").textContent = g.length;
+  }).catch(()=>{});
+</script>
+</body>
+</html>
