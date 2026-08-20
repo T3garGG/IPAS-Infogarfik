@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const result = await sql`
-        SELECT id, nama, kategori, deskripsi, img, ts
+        SELECT id, nama, kategori, deskripsi, img, files, ts
         FROM gallery
         ORDER BY ts DESC
       `;
@@ -24,19 +24,20 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { nama, kategori, desc, img, ts } = req.body;
-      if (!nama || !img) {
-        return res.status(400).json({ error: 'Nama & foto wajib diisi' });
+      const { nama, kategori, desc, img, files, ts } = req.body;
+      if (!nama) {
+        return res.status(400).json({ error: 'Nama wajib diisi' });
       }
+      const filesJson = Array.isArray(files) ? files : (img ? [img] : []);
       const result = await sql`
-        INSERT INTO gallery (nama, kategori, deskripsi, img, ts)
-        VALUES (${nama}, ${kategori || 'Hias'}, ${desc || ''}, ${img}, ${ts || Date.now()})
-        RETURNING id, nama, kategori, deskripsi, img, ts
+        INSERT INTO gallery (nama, kategori, deskripsi, img, files, ts)
+        VALUES (${nama}, ${kategori || 'Hias'}, ${desc || ''}, ${img || ''}, ${filesJson}, ${ts || Date.now()})
+        RETURNING id, nama, kategori, deskripsi, img, files, ts
       `;
       return res.status(200).json(result[0]);
     } catch (e) {
       console.error(e);
-      return res.status(500).json({ error: 'Gagal menyimpan foto' });
+      return res.status(500).json({ error: 'Gagal menyimpan file' });
     }
   }
 

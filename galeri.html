@@ -83,6 +83,7 @@
     <script src="data.js"></script>
     <script src="shared.js"></script>
     <script>
+        const API_URL = "/api/gallery";
         const STORAGE_KEY = "herbarium_gallery";
         const grid = document.getElementById("galeriGrid");
         const emptyGaleri = document.getElementById("emptyGaleri");
@@ -91,15 +92,43 @@
         const fileInput = document.getElementById("fFile");
         const filePreview = document.getElementById("filePreview");
 
-        function loadGallery() {
+        let galleryItems = [];
+        let selectedFiles = [];
+        let useLocal = false;
+
+        async function loadGallery() {
             try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+                const res = await fetch(API_URL);
+                if (!res.ok) throw new Error("API error");
+                galleryItems = await res.json();
+                useLocal = false;
             } catch (e) {
-                return [];
+                useLocal = true;
+                try {
+                    galleryItems = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+                } catch (e) {
+                    galleryItems = [];
+                }
             }
         }
 
-        function saveGallery(items) {
+        async function saveGalleryApi(item) {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(item)
+            });
+            if (!res.ok) throw new Error("Gagal menyimpan ke database");
+            return await res.json();
+        }
+
+        async function deleteGalleryApi(id) {
+            const res = await fetch(`${API_URL}?id=${id}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Gagal menghapus");
+            return await res.json();
+        }
+
+        function saveGalleryLocal(items) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
         }
 
@@ -121,10 +150,10 @@
             return f;
         }
 
-        function renderGallery() {
-            const items = loadGallery();
-            emptyGaleri.style.display = items.length ? "none" : "block";
-            grid.innerHTML = items.map((it, idx) => {
+        async function renderGallery() {
+            await loadGallery();
+            emptyGaleri.style.display = galleryItems.length ? "none" : "block";
+            grid.innerHTML = galleryItems.map((it, idx) => {
                 const files = getFiles(it);
                 const thumb = thumbSrc(it);
                 const hasPdf = files.some(f => isPdf(f));
@@ -156,13 +185,22 @@
                 });
             });
             grid.querySelectorAll(".del").forEach(btn => {
-                btn.addEventListener("click", (e) => {
+                btn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     const idx = parseInt(btn.dataset.idx);
-                    const items = loadGallery();
-                    items.splice(idx, 1);
-                    saveGallery(items);
-                    renderGallery();
+                    const it = galleryItems[idx];
+                    if (!it) return;
+                    formErr.textContent = "Menghapus...";
+                    try {
+                        if (!useLocal && it.id) {
+                            await deleteGalleryApi(it.id);
+                        }
+                        galleryItems.splice(idx, 1);
+                        if (useLocal) saveGalleryLocal(galleryItems);
+                        renderGallery();
+                    } catch (e) {
+                        formErr.textContent = e.message;
+                    }
                 });
             });
         }
@@ -171,13 +209,10 @@
         const modalContent = document.getElementById("modalContent");
 
         function openModal(idx) {
-            const items = loadGallery();
-            const it = items[idx];
+            const it = galleryItems[idx];
             if (!it) return;
             const files = getFiles(it);
             const hasPdf = files.some(f => isPdf(f));
-            const imgFiles = files.filter(f => !isPdf(f));
-            const pdfFiles = files.filter(f => isPdf(f));
 
             let mediaHtml = "";
             if (files.length === 1) {
@@ -240,8 +275,6 @@
         overlay.addEventListener("click", (e) => {
             if (e.target === overlay) overlay.classList.remove("open");
         });
-
-        let selectedFiles = [];
 
         function updatePreview(files) {
             filePreview.innerHTML = "";
@@ -337,22 +370,32 @@
                 }
             }
 
-            const items = loadGallery();
-            items.unshift({
-                nama,
-                desc,
-                files: dataUrls,
-                ts: Date.now()
-            });
-            saveGallery(items);
-            selectedFiles = [];
-            form.reset();
-            filePreview.innerHTML = "";
-            renderGallery();
-            document.getElementById("galeriGrid").scrollIntoView({
-                behavior: "smooth",
-                block: "start"
-            });
+            formErr.textContent = "Menyimpan...";
+            try {
+                const item = {
+                    nama,
+                    desc,
+                    img: dataUrls[0] || "",
+                    files: dataUrls,
+                    ts: Date.now()
+                };
+                if (!useLocal) {
+                    const saved = await saveGalleryApi(item);
+                    item.id = saved.id;
+                }
+                galleryItems.unshift(item);
+                if (useLocal) saveGalleryLocal(galleryItems);
+                selectedFiles = [];
+                form.reset();
+                filePreview.innerHTML = "";
+                renderGallery();
+                document.getElementById("galeriGrid").scrollIntoView({
+                    behavior: "smooth",
+                    block: "start"
+                });
+            } catch (e) {
+                formErr.textContent = e.message || "Gagal menyimpan. Coba lagi.";
+            }
         });
 
         renderGallery();
