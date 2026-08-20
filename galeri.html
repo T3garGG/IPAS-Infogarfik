@@ -287,7 +287,7 @@
             updatePreview(selectedFiles);
         });
 
-        form.addEventListener("submit", (e) => {
+        form.addEventListener("submit", async (e) => {
             e.preventDefault();
             formErr.textContent = "";
             const nama = document.getElementById("fName").value.trim();
@@ -317,34 +317,41 @@
                 return;
             }
 
-            const readers = files.map(file => {
-                return new Promise((resolve, reject) => {
+            const readers = [];
+            for (const file of files) {
+                readers.push(new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
-                    reader.onerror = () => reject(new Error("Gagal baca file"));
+                    reader.onerror = () => reject(new Error(`Gagal membaca file: ${file.name}`));
                     reader.readAsDataURL(file);
-                });
-            });
+                }));
+            }
 
-            Promise.all(readers).then(dataUrls => {
-                const items = loadGallery();
-                items.unshift({
-                    nama,
-                    desc,
-                    files: dataUrls,
-                    ts: Date.now()
-                });
-                saveGallery(items);
-                selectedFiles = [];
-                form.reset();
-                filePreview.innerHTML = "";
-                renderGallery();
-                document.getElementById("galeriGrid").scrollIntoView({
-                    behavior: "smooth",
-                    block: "start"
-                });
-            }).catch(() => {
-                formErr.textContent = "Gagal memproses file, coba lagi.";
+            let dataUrls = [];
+            for (const p of readers) {
+                try {
+                    dataUrls.push(await p);
+                } catch (e) {
+                    formErr.textContent = e.message;
+                    return;
+                }
+            }
+
+            const items = loadGallery();
+            items.unshift({
+                nama,
+                desc,
+                files: dataUrls,
+                ts: Date.now()
+            });
+            saveGallery(items);
+            selectedFiles = [];
+            form.reset();
+            filePreview.innerHTML = "";
+            renderGallery();
+            document.getElementById("galeriGrid").scrollIntoView({
+                behavior: "smooth",
+                block: "start"
             });
         });
 
