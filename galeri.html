@@ -46,7 +46,7 @@
                     <div class="full">
                         <label for="fFile">File (Gambar / PDF) *</label>
                         <input type="file" id="fFile" accept="image/*,.pdf" multiple required>
-                        <p class="hint">Pilih 2–10 file. Bisa gabung gambar dan dokumen PDF.</p>
+                        <p class="hint">Pilih 1–10 file. Bisa gabung gambar dan dokumen PDF.</p>
                         <div id="filePreview" class="file-preview"></div>
                     </div>
                     <div class="upload-actions">
@@ -276,8 +276,8 @@
             const desc = document.getElementById("fDesc").value.trim();
             const files = fileInput.files;
 
-            if (!nama || files.length < 2) {
-                formErr.textContent = "Nama dan minimal 2 file wajib diisi.";
+            if (!nama || files.length < 1) {
+                formErr.textContent = "Nama dan minimal 1 file wajib diisi.";
                 return;
             }
             if (files.length > 10) {
