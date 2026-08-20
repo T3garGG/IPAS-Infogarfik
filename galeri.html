@@ -39,13 +39,25 @@
                         <label for="fName">Nama Tanaman *</label>
                         <input type="text" id="fName" placeholder="Contoh: Bunga Kertas" required>
                     </div>
+                    <div>
+                        <label for="fCat">Kategori *</label>
+                        <select id="fCat" required>
+                            <option value="">— Pilih Kategori —</option>
+                            <option value="Hias">Tanaman Hias</option>
+                            <option value="Obat">Tanaman Obat</option>
+                            <option value="Pangan">Tanaman Pangan</option>
+                            <option value="Langka">Tanaman Langka</option>
+                        </select>
+                    </div>
                     <div class="full">
                         <label for="fDesc">Deskripsi Singkat</label>
                         <textarea id="fDesc" rows="3" placeholder="Ciri-ciri, lokasi ditemukan, atau manfaatnya..."></textarea>
                     </div>
                     <div class="full">
-                        <label for="fFile">Foto Tanaman *</label>
-                        <input type="file" id="fFile" accept="image/*" required>
+                        <label for="fFile">File (Gambar / PDF) *</label>
+                        <input type="file" id="fFile" accept="image/*,.pdf" multiple required>
+                        <p class="hint">Pilih 2–10 file. Bisa gabung gambar dan dokumen PDF.</p>
+                        <div id="filePreview" class="file-preview"></div>
                     </div>
                     <div class="upload-actions">
                         <span class="err" id="formErr"></span>
@@ -86,6 +98,8 @@
         const emptyGaleri = document.getElementById("emptyGaleri");
         const form = document.getElementById("uploadForm");
         const formErr = document.getElementById("formErr");
+        const fileInput = document.getElementById("fFile");
+        const filePreview = document.getElementById("filePreview");
 
         function loadGallery() {
             try {
@@ -99,22 +113,49 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
         }
 
+        function isPdf(dataUrl) {
+            return dataUrl.startsWith("data:application/pdf");
+        }
+
+        function getFiles(it) {
+            if (it.files && Array.isArray(it.files)) return it.files;
+            if (it.img) return [it.img];
+            return [];
+        }
+
+        function thumbSrc(it) {
+            const files = getFiles(it);
+            if (!files.length) return "";
+            const f = files[0];
+            if (isPdf(f)) return "";
+            return f;
+        }
+
         function renderGallery() {
             const items = loadGallery();
             emptyGaleri.style.display = items.length ? "none" : "block";
-            grid.innerHTML = items.map((it, idx) => `
-      <div class="card reveal show" data-idx="${idx}">
-        <button class="del" data-idx="${idx}" title="Hapus">✕</button>
-        <div class="stitchtop"></div>
-        <img class="thumb" src="${it.img}" alt="${it.nama}">
-        <div class="body">
-          <span class="no-tag">Kiriman Warga</span>
-          <h3>${it.nama}</h3>
-          <p class="desc">${it.desc || "Belum ada deskripsi."}</p>
-          <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>
-        </div>
-      </div>
-    `).join("");
+            grid.innerHTML = items.map((it, idx) => {
+                const files = getFiles(it);
+                const thumb = thumbSrc(it);
+                const hasPdf = files.some(f => isPdf(f));
+                return `
+                <div class="card reveal show" data-idx="${idx}">
+                    <button class="del" data-idx="${idx}" title="Hapus">✕</button>
+                    <div class="stitchtop"></div>
+                    ${thumb
+                        ? `<img class="thumb" src="${thumb}" alt="${it.nama}">`
+                        : `<div class="thumb pdf-thumb"><span class="pdf-icon">📄</span><span class="pdf-label">PDF</span></div>`
+                    }
+                    ${hasPdf ? `<span class="badge pdf-badge">PDF</span>` : ""}
+                    <div class="body">
+                        <span class="no-tag">Kiriman Warga</span>
+                        <h3>${it.nama}</h3>
+                        <p class="desc">${it.desc || "Belum ada deskripsi."}</p>
+                        <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>
+                        ${files.length > 1 ? `<span class="badge count-badge">${files.length} file</span>` : ""}
+                    </div>
+                </div>`;
+            }).join("");
 
             grid.querySelectorAll(".card").forEach(card => {
                 card.addEventListener("click", (e) => {
@@ -141,20 +182,102 @@
             const items = loadGallery();
             const it = items[idx];
             if (!it) return;
+            const files = getFiles(it);
+            const hasPdf = files.some(f => isPdf(f));
+            const imgFiles = files.filter(f => !isPdf(f));
+            const pdfFiles = files.filter(f => isPdf(f));
+
+            let mediaHtml = "";
+            if (files.length === 1) {
+                const f = files[0];
+                if (isPdf(f)) {
+                    mediaHtml = `<a href="${f}" download="${it.nama || 'dokumen'}.pdf" class="pdf-download-btn">📄 Unduh PDF</a>`;
+                } else {
+                    mediaHtml = `<img src="${f}" alt="${it.nama}">`;
+                }
+            } else if (files.length > 1) {
+                let slides = files.map((f, i) => {
+                    if (isPdf(f)) {
+                        return `<div class="carousel-slide" data-idx="${i}"><a href="${f}" download="${it.nama || 'dokumen'}_${i+1}.pdf" class="pdf-download-btn">📄 Unduh PDF</a></div>`;
+                    }
+                    return `<div class="carousel-slide" data-idx="${i}"><img src="${f}" alt="${it.nama} - ${i+1}"></div>`;
+                }).join("");
+                mediaHtml = `
+                <div class="carousel">
+                    <div class="carousel-track" id="carouselTrack">${slides}</div>
+                    ${files.length > 1 ? `
+                    <button class="carousel-btn prev" id="carouselPrev">‹</button>
+                    <button class="carousel-btn next" id="carouselNext">›</button>
+                    <div class="carousel-counter" id="carouselCounter">1 / ${files.length}</div>
+                    ` : ""}
+                </div>`;
+            }
+
             modalContent.innerHTML = `
-      <img src="${it.img}" alt="${it.nama}">
-      <div class="modal-body">
-        <span class="no-tag">Kiriman Warga — <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span></span>
-        <h2>${it.nama}</h2>
-        <p style="color:var(--ink-soft); margin-top:10px;">${it.desc || "Belum ada deskripsi."}</p>
-      </div>
-    `;
+                ${mediaHtml}
+                <div class="modal-body">
+                    <span class="no-tag">Kiriman Warga — <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span></span>
+                    <h2>${it.nama}</h2>
+                    <p style="color:var(--ink-soft); margin-top:10px;">${it.desc || "Belum ada deskripsi."}</p>
+                </div>
+            `;
             overlay.classList.add("open");
+
+            if (files.length > 1) {
+                let currentSlide = 0;
+                const track = document.getElementById("carouselTrack");
+                const counter = document.getElementById("carouselCounter");
+                const prev = document.getElementById("carouselPrev");
+                const next = document.getElementById("carouselNext");
+                if (!track) return;
+
+                function showSlide(n) {
+                    const slides = track.querySelectorAll(".carousel-slide");
+                    if (!slides.length) return;
+                    currentSlide = (n + slides.length) % slides.length;
+                    slides.forEach((s, i) => s.classList.toggle("active", i === currentSlide));
+                    if (counter) counter.textContent = `${currentSlide + 1} / ${slides.length}`;
+                }
+                showSlide(0);
+                if (prev) prev.onclick = () => showSlide(currentSlide - 1);
+                if (next) next.onclick = () => showSlide(currentSlide + 1);
+            }
         }
+
         document.getElementById("modalClose").addEventListener("click", () => overlay.classList.remove("open"));
         overlay.addEventListener("click", (e) => {
             if (e.target === overlay) overlay.classList.remove("open");
         });
+
+        function updatePreview(files) {
+            filePreview.innerHTML = "";
+            if (!files.length) return;
+            Array.from(files).forEach((f, i) => {
+                const item = document.createElement("div");
+                item.className = "file-preview-item";
+                const isPdfFile = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+                item.innerHTML = `
+                    <span class="file-preview-name">${f.name}</span>
+                    <span class="file-preview-size">${(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                    ${isPdfFile ? '<span class="file-preview-type pdf">PDF</span>' : '<span class="file-preview-type img">Gambar</span>'}
+                    <button type="button" class="file-preview-remove" data-idx="${i}">✕</button>
+                `;
+                filePreview.appendChild(item);
+            });
+            filePreview.querySelectorAll(".file-preview-remove").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const idx = parseInt(btn.dataset.idx);
+                    const dt = new DataTransfer();
+                    Array.from(fileInput.files).forEach((f, i) => {
+                        if (i !== idx) dt.items.add(f);
+                    });
+                    fileInput.files = dt.files;
+                    updatePreview(fileInput.files);
+                });
+            });
+        }
+
+        fileInput.addEventListener("change", () => updatePreview(fileInput.files));
 
         form.addEventListener("submit", (e) => {
             e.preventDefault();
@@ -162,40 +285,60 @@
             const nama = document.getElementById("fName").value.trim();
             const kategori = document.getElementById("fCat").value;
             const desc = document.getElementById("fDesc").value.trim();
-            const fileInput = document.getElementById("fFile");
-            const file = fileInput.files[0];
+            const files = fileInput.files;
 
-            if (!nama || !file) {
-                formErr.textContent = "Nama & foto wajib diisi.";
+            if (!nama || !kategori || files.length < 2) {
+                formErr.textContent = "Nama, kategori, dan minimal 2 file wajib diisi.";
                 return;
             }
-            if (file.size > 3 * 1024 * 1024) {
-                formErr.textContent = "Ukuran foto maks 3MB ya.";
+            if (files.length > 10) {
+                formErr.textContent = "Maksimal 10 file ya.";
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = () => {
+            const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "application/pdf"];
+            const invalid = Array.from(files).some(f => !allowedTypes.includes(f.type) && !f.name.toLowerCase().endsWith(".pdf"));
+            if (invalid) {
+                formErr.textContent = "Hanya file gambar dan PDF yang diperbolehkan.";
+                return;
+            }
+
+            const maxSize = 10 * 1024 * 1024;
+            const tooLarge = Array.from(files).some(f => f.size > maxSize);
+            if (tooLarge) {
+                formErr.textContent = "Ukuran setiap file maks 10MB ya.";
+                return;
+            }
+
+            const readers = Array.from(files).map(file => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = () => reject(new Error("Gagal baca file"));
+                    reader.readAsDataURL(file);
+                });
+            });
+
+            Promise.all(readers).then(dataUrls => {
                 const items = loadGallery();
                 items.unshift({
                     nama,
                     kategori,
                     desc,
-                    img: reader.result,
+                    files: dataUrls,
                     ts: Date.now()
                 });
                 saveGallery(items);
                 form.reset();
+                filePreview.innerHTML = "";
                 renderGallery();
                 document.getElementById("galeriGrid").scrollIntoView({
                     behavior: "smooth",
                     block: "start"
                 });
-            };
-            reader.onerror = () => {
-                formErr.textContent = "Gagal baca file, coba foto lain.";
-            };
-            reader.readAsDataURL(file);
+            }).catch(() => {
+                formErr.textContent = "Gagal memproses file, coba lagi.";
+            });
         });
 
         renderGallery();
