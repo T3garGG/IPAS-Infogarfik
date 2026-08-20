@@ -39,16 +39,6 @@
                         <label for="fName">Nama Tanaman *</label>
                         <input type="text" id="fName" placeholder="Contoh: Bunga Kertas" required>
                     </div>
-                    <div>
-                        <label for="fCat">Kategori *</label>
-                        <select id="fCat" required>
-                            <option value="">— Pilih Kategori —</option>
-                            <option value="Hias">Tanaman Hias</option>
-                            <option value="Obat">Tanaman Obat</option>
-                            <option value="Pangan">Tanaman Pangan</option>
-                            <option value="Langka">Tanaman Langka</option>
-                        </select>
-                    </div>
                     <div class="full">
                         <label for="fDesc">Deskripsi Singkat</label>
                         <textarea id="fDesc" rows="3" placeholder="Ciri-ciri, lokasi ditemukan, atau manfaatnya..."></textarea>
@@ -151,7 +141,7 @@
                         <span class="no-tag">Kiriman Warga</span>
                         <h3>${it.nama}</h3>
                         <p class="desc">${it.desc || "Belum ada deskripsi."}</p>
-                        <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>
+                        ${it.kategori ? `<span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>` : ""}
                         ${files.length > 1 ? `<span class="badge count-badge">${files.length} file</span>` : ""}
                     </div>
                 </div>`;
@@ -216,7 +206,7 @@
             modalContent.innerHTML = `
                 ${mediaHtml}
                 <div class="modal-body">
-                    <span class="no-tag">Kiriman Warga — <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span></span>
+                    <span class="no-tag">Kiriman Warga${it.kategori ? ` — <span class="badge ${kategoriClass(it.kategori)}">${it.kategori}</span>` : ""}</span>
                     <h2>${it.nama}</h2>
                     <p style="color:var(--ink-soft); margin-top:10px;">${it.desc || "Belum ada deskripsi."}</p>
                 </div>
@@ -283,12 +273,11 @@
             e.preventDefault();
             formErr.textContent = "";
             const nama = document.getElementById("fName").value.trim();
-            const kategori = document.getElementById("fCat").value;
             const desc = document.getElementById("fDesc").value.trim();
             const files = fileInput.files;
 
-            if (!nama || !kategori || files.length < 2) {
-                formErr.textContent = "Nama, kategori, dan minimal 2 file wajib diisi.";
+            if (!nama || files.length < 2) {
+                formErr.textContent = "Nama dan minimal 2 file wajib diisi.";
                 return;
             }
             if (files.length > 10) {
@@ -323,7 +312,6 @@
                 const items = loadGallery();
                 items.unshift({
                     nama,
-                    kategori,
                     desc,
                     files: dataUrls,
                     ts: Date.now()
