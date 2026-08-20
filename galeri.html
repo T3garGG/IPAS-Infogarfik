@@ -133,7 +133,9 @@
                     <button class="del" data-idx="${idx}" title="Hapus">✕</button>
                     <div class="stitchtop"></div>
                     ${thumb
-                        ? `<img class="thumb" src="${thumb}" alt="${it.nama}">`
+                        ? (isPdf(thumb)
+                            ? `<embed class="thumb pdf-thumb" src="${thumb}" type="application/pdf">`
+                            : `<img class="thumb" src="${thumb}" alt="${it.nama}">`)
                         : `<div class="thumb pdf-thumb"><span class="pdf-icon">📄</span><span class="pdf-label">PDF</span></div>`
                     }
                     ${hasPdf ? `<span class="badge pdf-badge">PDF</span>` : ""}
@@ -181,14 +183,14 @@
             if (files.length === 1) {
                 const f = files[0];
                 if (isPdf(f)) {
-                    mediaHtml = `<a href="${f}" download="${it.nama || 'dokumen'}.pdf" class="pdf-download-btn">📄 Unduh PDF</a>`;
+                    mediaHtml = `<embed src="${f}" type="application/pdf" class="modal-pdf">`;
                 } else {
                     mediaHtml = `<img src="${f}" alt="${it.nama}">`;
                 }
             } else if (files.length > 1) {
                 let slides = files.map((f, i) => {
                     if (isPdf(f)) {
-                        return `<div class="carousel-slide" data-idx="${i}"><a href="${f}" download="${it.nama || 'dokumen'}_${i+1}.pdf" class="pdf-download-btn">📄 Unduh PDF</a></div>`;
+                        return `<div class="carousel-slide" data-idx="${i}"><embed src="${f}" type="application/pdf" class="modal-pdf"></div>`;
                     }
                     return `<div class="carousel-slide" data-idx="${i}"><img src="${f}" alt="${it.nama} - ${i+1}"></div>`;
                 }).join("");
@@ -239,6 +241,8 @@
             if (e.target === overlay) overlay.classList.remove("open");
         });
 
+        let selectedFiles = [];
+
         function updatePreview(files) {
             filePreview.innerHTML = "";
             if (!files.length) return;
@@ -257,24 +261,38 @@
             filePreview.querySelectorAll(".file-preview-remove").forEach(btn => {
                 btn.addEventListener("click", () => {
                     const idx = parseInt(btn.dataset.idx);
-                    const dt = new DataTransfer();
-                    Array.from(fileInput.files).forEach((f, i) => {
-                        if (i !== idx) dt.items.add(f);
-                    });
-                    fileInput.files = dt.files;
-                    updatePreview(fileInput.files);
+                    selectedFiles.splice(idx, 1);
+                    syncFileInput();
+                    updatePreview(selectedFiles);
                 });
             });
         }
 
-        fileInput.addEventListener("change", () => updatePreview(fileInput.files));
+        function syncFileInput() {
+            const dt = new DataTransfer();
+            selectedFiles.forEach(f => dt.items.add(f));
+            fileInput.files = dt.files;
+        }
+
+        fileInput.addEventListener("change", () => {
+            const newFiles = Array.from(fileInput.files);
+            const seen = new Set(selectedFiles.map(f => f.name + f.size));
+            newFiles.forEach(f => {
+                const key = f.name + f.size;
+                if (!seen.has(key)) {
+                    selectedFiles.push(f);
+                }
+            });
+            syncFileInput();
+            updatePreview(selectedFiles);
+        });
 
         form.addEventListener("submit", (e) => {
             e.preventDefault();
             formErr.textContent = "";
             const nama = document.getElementById("fName").value.trim();
             const desc = document.getElementById("fDesc").value.trim();
-            const files = fileInput.files;
+            const files = selectedFiles;
 
             if (!nama || files.length < 1) {
                 formErr.textContent = "Nama dan minimal 1 file wajib diisi.";
@@ -286,20 +304,20 @@
             }
 
             const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "application/pdf"];
-            const invalid = Array.from(files).some(f => !allowedTypes.includes(f.type) && !f.name.toLowerCase().endsWith(".pdf"));
+            const invalid = files.some(f => !allowedTypes.includes(f.type) && !f.name.toLowerCase().endsWith(".pdf"));
             if (invalid) {
                 formErr.textContent = "Hanya file gambar dan PDF yang diperbolehkan.";
                 return;
             }
 
             const maxSize = 10 * 1024 * 1024;
-            const tooLarge = Array.from(files).some(f => f.size > maxSize);
+            const tooLarge = files.some(f => f.size > maxSize);
             if (tooLarge) {
                 formErr.textContent = "Ukuran setiap file maks 10MB ya.";
                 return;
             }
 
-            const readers = Array.from(files).map(file => {
+            const readers = files.map(file => {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result);
@@ -317,6 +335,7 @@
                     ts: Date.now()
                 });
                 saveGallery(items);
+                selectedFiles = [];
                 form.reset();
                 filePreview.innerHTML = "";
                 renderGallery();
